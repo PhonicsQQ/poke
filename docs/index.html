@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trending Pokemon Cards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sleeve: #E9EDF3;      /* binder-page background */
+    --ink: #1C2433;
+    --ink-soft: #5A6577;
+    --pocket: #FFFFFF;      /* card tile */
+    --edge: #D4DAE4;
+    --up: #0B8A5C;
+    --up-bg: #E3F4EC;
+    --down: #C13B54;
+    --down-bg: #F9E7EB;
+    --radius: 14px;         /* TCG cards have soft corners */
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--sleeve);
+    color: var(--ink);
+    font-family: "Bricolage Grotesque", system-ui, sans-serif;
+    padding: 40px 24px 80px;
+  }
+  .mono { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+
+  header { max-width: 1080px; margin: 0 auto 36px; }
+  header h1 { font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 700; letter-spacing: -0.02em; }
+  header p  { color: var(--ink-soft); margin-top: 6px; font-size: 0.95rem; }
+  header .snapshot { font-size: 0.8rem; }
+
+  .grid {
+    max-width: 1080px; margin: 0 auto;
+    display: grid; gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  }
+
+  .pocket {
+    background: var(--pocket);
+    border: 1px solid var(--edge);
+    border-radius: var(--radius);
+    padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+    position: relative;
+  }
+  .pocket img {
+    width: 100%; aspect-ratio: 63 / 88;  /* real TCG card proportions */
+    object-fit: contain; border-radius: 8px;
+    background: var(--sleeve);
+  }
+  .rank {
+    position: absolute; top: 10px; left: 10px;
+    background: var(--ink); color: var(--pocket);
+    font-size: 0.72rem; font-weight: 600;
+    padding: 3px 8px; border-radius: 999px;
+  }
+  .name { font-weight: 700; font-size: 1.02rem; line-height: 1.25; }
+  .row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .price { font-size: 1.05rem; font-weight: 600; }
+  .delta { font-size: 0.8rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+  .delta.up   { color: var(--up);   background: var(--up-bg); }
+  .delta.down { color: var(--down); background: var(--down-bg); }
+  .delta.flat { color: var(--ink-soft); background: var(--sleeve); }
+  .spark { width: 100%; height: 36px; display: block; }
+  .was { color: var(--ink-soft); font-size: 0.75rem; }
+
+  /* The chase card: holofoil border on rank #1 */
+  .pocket.holo { border: none; padding: 15px; }
+  .pocket.holo::before {
+    content: ""; position: absolute; inset: 0; z-index: -1;
+    border-radius: var(--radius);
+    margin: -2px;
+    background: linear-gradient(120deg,
+      #7ad7f0, #b79bf7, #f79bd3, #ffd88a, #9bf7c4, #7ad7f0);
+    background-size: 300% 300%;
+    animation: holo 6s linear infinite;
+  }
+  .pocket.holo { z-index: 0; }
+  @keyframes holo { to { background-position: 300% 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .pocket.holo::before { animation: none; }
+  }
+
+  .empty {
+    max-width: 560px; margin: 80px auto; text-align: center; color: var(--ink-soft);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Trending Pokemon Cards</h1>
+  <p>Biggest market-price movers over the last 7 days, Prismatic Evolutions.</p>
+  <p class="snapshot mono" id="snapshot"></p>
+</header>
+
+<div class="grid" id="grid"></div>
+<div class="empty" id="empty" hidden>
+  <p>No price data yet. The first daily snapshot lands tomorrow morning — check back then.</p>
+</div>
+
+<script>
+function sparkline(history, trendClass) {
+  const w = 200, h = 36, pad = 3;
+  const prices = history.map(p => p.price);
+  if (prices.length === 0) return "";
+
+  const min = Math.min(...prices), max = Math.max(...prices);
+  const span = (max - min) || 1;                    // avoid divide-by-zero on flat lines
+  const x = i => prices.length === 1
+      ? w / 2
+      : pad + i * (w - 2 * pad) / (prices.length - 1);
+  const y = p => h - pad - (p - min) / span * (h - 2 * pad);
+
+  const stroke = trendClass === "up" ? "var(--up)"
+               : trendClass === "down" ? "var(--down)" : "var(--ink-soft)";
+
+  if (prices.length === 1) {                        // day one: a dot, not a line
+    return `<svg class="spark" viewBox="0 0 ${w} ${h}">
+      <circle cx="${w/2}" cy="${h/2}" r="3" fill="${stroke}"/></svg>`;
+  }
+  const pts = prices.map((p, i) => `${x(i).toFixed(1)},${y(p).toFixed(1)}`).join(" ");
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polyline points="${pts}" fill="none" stroke="${stroke}"
+      stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+
+const usd = n => n == null ? "—" :
+  n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+async function load() {
+  const grid = document.getElementById("grid");
+  try {
+    const res = await fetch("data/trending.json", { cache: "no-store" });
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+
+    document.getElementById("snapshot").textContent =
+      `snapshot ${data.latest_snapshot}`;
+
+    if (!data.cards.length) throw new Error("empty");
+
+    grid.innerHTML = data.cards.map(c => {
+      const cls = c.pct_change > 0 ? "up" : c.pct_change < 0 ? "down" : "flat";
+      const sign = c.pct_change > 0 ? "▲" : c.pct_change < 0 ? "▼" : "•";
+      return `
+      <article class="pocket${c.trend_rank === 1 ? " holo" : ""}">
+        <span class="rank mono">#${c.trend_rank}</span>
+        <img src="${c.image_url}" alt="${c.name} card" loading="lazy">
+        <div class="name">${c.name}</div>
+        <div class="row">
+          <span class="price mono">${usd(c.current_price)}</span>
+          <span class="delta mono ${cls}">${sign} ${Math.abs(c.pct_change).toFixed(1)}%</span>
+        </div>
+        ${sparkline(c.history, cls)}
+        <div class="was mono">7d ago: ${usd(c.price_7d_ago)}</div>
+      </article>`;
+    }).join("");
+  } catch (e) {
+    document.getElementById("empty").hidden = false;
+  }
+}
+load();
+</script>
+</body>
+</html>

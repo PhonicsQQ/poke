@@ -32,11 +32,14 @@ jobs:
       - name: Refresh trending view
         run: sqlite3 pokeprices.db < trending.sql
 
+      - name: Export site data
+        run: python export_site.py
+
       - name: Commit updated database
         run: |
           git config user.name  "price-bot"
           git config user.email "actions@github.com"
-          git add pokeprices.db data/raw/
+          git add pokeprices.db data/raw/ docs/data/
           # Only commit if something actually changed (prevents
           # empty-commit failures if the API returned nothing new)
           git diff --cached --quiet || git commit -m "snapshot: $(date -u +%F)"
