@@ -50,7 +50,9 @@ SELECT
     t.price                                            AS price_7d_ago,
     ROUND((n.price - t.price) / t.price * 100, 2)      AS pct_change,
     RANK() OVER (
-        ORDER BY (n.price - t.price) / t.price DESC
+        ORDER BY (n.price - t.price) / t.price DESC,  -- primary: % change
+                 n.price DESC,                        -- tiebreak: bigger base price
+                 c.card_id                            -- final: guaranteed unique
     )                                                  AS trend_rank
 FROM now_prices n
 JOIN then_prices t USING (card_id)
