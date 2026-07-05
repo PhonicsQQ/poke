@@ -1,0 +1,43 @@
+name: Daily price ingestion
+
+on:
+  schedule:
+    # 13:15 UTC = 6:15am Pacific. Note: Actions cron is best-effort;
+    # runs can start minutes-to-an-hour late during busy periods.
+    # Off-peak minutes (not :00) get picked up faster.
+    - cron: "15 13 * * *"
+  workflow_dispatch: {}   # manual "Run workflow" button for testing
+
+permissions:
+  contents: write         # required to push the updated db back
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run ingestion
+        env:
+          POKEMONTCG_API_KEY: ${{ secrets.POKEMONTCG_API_KEY }}
+        run: python ingest.py
+
+      - name: Refresh trending view
+        run: sqlite3 pokeprices.db < trending.sql
+
+      - name: Commit updated database
+        run: |
+          git config user.name  "price-bot"
+          git config user.email "actions@github.com"
+          git add pokeprices.db data/raw/
+          # Only commit if something actually changed (prevents
+          # empty-commit failures if the API returned nothing new)
+          git diff --cached --quiet || git commit -m "snapshot: $(date -u +%F)"
+          git push
