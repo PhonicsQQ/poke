@@ -31,6 +31,8 @@ import requests
 
 API_URL = "https://api.pokemontcg.io/v2/cards"
 PAGE_SIZE = 250  # API max; most sets fit in one page
+MAX_FETCH_ATTEMPTS = 5
+RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_DB = SCRIPT_DIR / "pokeprices.db"
@@ -40,20 +42,46 @@ SCHEMA_PATH = SCRIPT_DIR / "schema.sql"
 
 # ---------------------------------------------------------------- extraction
 
+def fetch_page(set_id: str, page: int, headers: dict) -> dict:
+    """Retry transient failures without restarting already fetched pages."""
+    for attempt in range(1, MAX_FETCH_ATTEMPTS + 1):
+        try:
+            with requests.get(
+                API_URL,
+                params={"q": f"set.id:{set_id}", "page": page, "pageSize": PAGE_SIZE},
+                headers=headers,
+                timeout=60,
+            ) as resp:
+                resp.raise_for_status()
+                return resp.json()
+        except requests.HTTPError as exc:
+            if exc.response is None or exc.response.status_code not in RETRYABLE_STATUSES:
+                raise
+            reason = f"HTTP {exc.response.status_code}"
+            if attempt == MAX_FETCH_ATTEMPTS:
+                raise
+        except (requests.Timeout, requests.ConnectionError) as exc:
+            reason = type(exc).__name__
+            if attempt == MAX_FETCH_ATTEMPTS:
+                raise
+
+        delay = 5 * 2 ** (attempt - 1)
+        print(
+            f"Set {set_id}, page {page}: {reason} on attempt "
+            f"{attempt}/{MAX_FETCH_ATTEMPTS}; retrying in {delay}s.",
+            file=sys.stderr,
+            flush=True,
+        )
+        time.sleep(delay)
+
+
 def fetch_set_cards(set_id: str, api_key: str | None = None) -> list[dict]:
     """Fetch every card in a set, following pagination."""
     headers = {"X-Api-Key": api_key} if api_key else {}
     cards: list[dict] = []
     page = 1
     while True:
-        resp = requests.get(
-            API_URL,
-            params={"q": f"set.id:{set_id}", "page": page, "pageSize": PAGE_SIZE},
-            headers=headers,
-            timeout=60,
-        )
-        resp.raise_for_status()
-        payload = resp.json()
+        payload = fetch_page(set_id, page, headers)
         cards.extend(payload["data"])
         # totalCount tells us when we've seen everything
         if page * payload["pageSize"] >= payload["totalCount"]:
@@ -159,8 +187,16 @@ def main() -> int:
     api_key = os.environ.get("POKEMONTCG_API_KEY")
     snapshot_date = date.today().isoformat()
 
-    print(f"Fetching set {args.set_id} ...")
-    cards = fetch_set_cards(args.set_id, api_key)
+    print(f"Fetching set {args.set_id} ...", flush=True)
+    try:
+        cards = fetch_set_cards(args.set_id, api_key)
+    except requests.RequestException as exc:
+        print(
+            f"Failed to fetch set {args.set_id}: {exc}. "
+            "No archive or database updates were made; rerun ingestion later.",
+            file=sys.stderr,
+        )
+        return 1
     if not cards:
         print(f"No cards returned for set '{args.set_id}' — check the set id.",
               file=sys.stderr)
