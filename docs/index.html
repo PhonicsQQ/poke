@@ -21,7 +21,61 @@
   body {
     background: var(--bg); color: var(--ink);
     font-family: "Schibsted Grotesk", system-ui, sans-serif;
-    padding: 48px 24px 96px;
+    padding: 0;
+  }
+  html { scroll-behavior: smooth; }
+  [hidden] { display: none !important; }
+  .landing {
+    min-height: 780px; min-height: 100svh; position: relative;
+    overflow: hidden; isolation: isolate;
+    background: radial-gradient(ellipse at 50% 60%, #e7e9dc 0%, #f4f4ec 50%, #fafaf9 85%);
+    display: flex; flex-direction: column;
+  }
+  .landing-nav {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 28px 5vw; gap: 20px;
+  }
+  .brand { color: var(--ink); text-decoration: none; font-size: 15px; font-weight: 700; letter-spacing: -.04em; }
+  .brand-mark { display: inline-block; width: 18px; height: 18px; border: 2px solid currentColor; border-radius: 50%; vertical-align: -4px; margin-right: 8px; background: linear-gradient(transparent 43%, currentColor 43% 57%, transparent 57%); }
+  .edition { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: #62645b; }
+  .hero-intro { text-align: center; padding: 40px 20px 0; z-index: 1; }
+  .eyebrow { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: #65695a; margin-bottom: 18px; }
+  .hero-intro h1 { font-size: clamp(44px, 6.5vw, 88px); letter-spacing: -.065em; line-height: 1.02; font-weight: 700; }
+  .hero-intro p:last-child { color: #686b61; font-size: 14px; line-height: 1.6; margin-top: 20px; }
+  .card-stage { position: relative; display: grid; align-items: center; min-height: 390px; flex: 1; margin: 12px 0; }
+  .card-stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #f4f4ec, transparent 13%, transparent 87%, #f4f4ec); }
+  .card-track { display: flex; width: max-content; animation: card-drift 65s linear infinite; }
+  .card-group { display: flex; align-items: center; gap: 30px; padding: 30px 15px; }
+  .hero-card { width: clamp(165px, 17vw, 235px); height: auto; aspect-ratio: 63 / 88; object-fit: contain; border-radius: 11px; transform: rotate(-7deg); box-shadow: 0 20px 26px -15px #30392766; }
+  .hero-card:nth-child(even) { transform: translateY(18px) rotate(7deg); }
+  .hero-card:nth-child(3n) { transform: translateY(-10px) rotate(-3deg); }
+  .hero-action { position: absolute; inset: 0; z-index: 2; display: grid; place-content: center; pointer-events: none; }
+  .check-prices { pointer-events: auto; display: inline-flex; align-items: center; gap: 30px; padding: 21px 30px; background: #222d21; color: #fff; border: 1px solid #56634b; border-radius: 50px; text-decoration: none; font-size: 17px; box-shadow: 0 0 0 9px #fafaf940, 0 16px 45px #1c281c44; transition: background .2s, transform .2s; }
+  .check-prices:hover { background: #3e5136; transform: translateY(-3px); }
+  a:focus-visible, .motion-toggle:focus-visible { outline: 3px solid #748c43; outline-offset: 5px; }
+  .landing-footer { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 20px 5vw 28px; color: #686b61; font-size: 10px; letter-spacing: .06em; }
+  .motion-toggle { background: transparent; color: inherit; font: inherit; border: 1px solid #cbcec2; border-radius: 20px; padding: 9px 14px; cursor: pointer; }
+  .landing.paused .card-track { animation-play-state: paused; }
+  .tracker { padding: 64px 24px 96px; scroll-margin-top: 0; }
+  .tracker:focus { outline: none; }
+  dialog { margin: auto; }
+  @keyframes card-drift { to { transform: translateX(-50%); } }
+  @media (max-width: 560px) {
+    .landing-nav { padding: 24px; }
+    .edition { max-width: 110px; text-align: right; line-height: 1.6; font-size: 9px; }
+    .hero-intro { padding-top: 36px; }
+    .hero-intro h1 { font-size: 48px; }
+    .card-stage { min-height: 320px; }
+    .card-group { gap: 22px; padding-inline: 11px; }
+    .landing-footer { padding: 16px 24px 24px; line-height: 1.6; }
+    .landing-footer > span { max-width: 180px; }
+    .check-prices { padding: 19px 26px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .card-track { animation: none; }
+    .check-prices { transition: none; }
+    .motion-toggle { display: none; }
   }
   .mono { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
   .up   { color: var(--up); }
@@ -105,7 +159,26 @@
 </style>
 </head>
 <body>
-
+<section class="landing" id="home" aria-labelledby="hero-title">
+  <nav class="landing-nav" aria-label="Main navigation">
+    <a class="brand" href="#home"><span class="brand-mark" aria-hidden="true"></span>poképrices</a>
+    <span class="edition mono">Scarlet &amp; Violet / Prismatic Evolutions</span>
+  </nav>
+  <div class="hero-intro">
+    <p class="eyebrow mono">For the love of the collection</p>
+    <h1 id="hero-title">Great cards.<br>Know their worth.</h1>
+    <p>Your favorites, their market prices, and the story over time.</p>
+  </div>
+  <div class="card-stage">
+    <div class="card-track" id="card-track" aria-hidden="true"></div>
+    <div class="hero-action"><a class="check-prices" href="#prices">Check prices <span aria-hidden="true">↗</span></a></div>
+  </div>
+  <div class="landing-footer mono">
+    <span>PRISMATIC EVOLUTIONS · PRICE TRACKER</span>
+    <button class="motion-toggle" id="motion-toggle" type="button" aria-pressed="false">Pause animation</button>
+  </div>
+</section>
+<main class="tracker" id="prices" tabindex="-1" aria-labelledby="title">
 <header>
   <h1 id="title">Prismatic Evolutions</h1>
   <span class="meta mono" id="meta"></span>
@@ -123,12 +196,39 @@
 <div class="grid" id="grid"></div>
 <div class="empty" id="empty" hidden><p>No price data yet — check back after the next daily snapshot.</p></div>
 
+</main>
+
 <dialog id="modal">
   <button class="close" id="close" aria-label="Close">✕</button>
   <div class="detail" id="detail"></div>
 </dialog>
 
 <script>
+// Fixed featured art keeps the landing page independent of price-data availability.
+const featuredCards = [161, 167, 156, 159, 165, 160, 169, 158];
+const cardTrack = document.getElementById("card-track");
+const cardGroup = document.createElement("div");
+cardGroup.className = "card-group";
+featuredCards.forEach(number => {
+  const image = document.createElement("img");
+  image.className = "hero-card";
+  image.src = `https://images.pokemontcg.io/sv8pt5/${number}.png`;
+  image.alt = "";
+  image.width = 235;
+  image.height = 328;
+  image.decoding = "async";
+  cardGroup.append(image);
+});
+cardTrack.append(cardGroup, cardGroup.cloneNode(true));
+document.getElementById("motion-toggle").addEventListener("click", event => {
+  const paused = document.getElementById("home").classList.toggle("paused");
+  event.currentTarget.setAttribute("aria-pressed", String(paused));
+  event.currentTarget.textContent = paused ? "Resume animation" : "Pause animation";
+});
+document.querySelector(".check-prices").addEventListener("click", () => {
+  document.getElementById("prices").focus({ preventScroll: true });
+});
+
 const usd = n => n == null ? "—" :
   n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
